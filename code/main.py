@@ -17,7 +17,7 @@ class Main:
         self.white_to_move = True
         self.selected_piece = None
         self.fen_history = []
-        self.fen_history.append(START_FEN_WHITE)
+        self.fen_history.append(START_FEN_WHITE if player_color == 'white' else START_FEN_BLACK)
         self.setup()
 
         # highlights
@@ -82,7 +82,7 @@ class Main:
             row = pos[1] // TILE_SIZE
 
             # Call the Board's make_move method
-            if self.board.make_move(self.selected_piece, col, row):
+            if self.board.make_move(self.selected_piece, col, row, self.legal_moves):
                 # If the move is successful, handle any additional logic
                 new_fen = self.generate_fen_from_board()
                 self.fen_history.append(new_fen)

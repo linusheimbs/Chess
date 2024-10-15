@@ -19,7 +19,7 @@ class Piece(pygame.sprite.Sprite):
         self.has_moved = False
 
     def __repr__(self):
-        return f'{self.color} {self.type}'
+        return f'{self.color.capitalize()} {self.type.capitalize()}'
 
     def generate_legal_moves(self, board, skip_check=False):
         """ General method to route to the specific piece's move generation """
@@ -45,17 +45,23 @@ class Piece(pygame.sprite.Sprite):
 
         removed_moves = []
         for move in legal_moves:
-            new_board = create_shallow_board_copy(board, self, move)
+            new_board = [None if piece is None else piece for piece in board]
+
             old_col = self.original_pos[0] // TILE_SIZE
             old_row = self.original_pos[1] // TILE_SIZE
 
-            if new_board[move[0] * 8 + move[1]]:
-                new_board[move[0] * 8 + move[1]] = None  # Clear captured piece
-            new_board[old_col * 8 + old_row] = None  # Clear old position
-            new_board[move[0] * 8 + move[1]] = self  # Update to new position
+            # Clear the old position and new position of the moving piece
+            new_board[old_row * 8 + old_col] = None
+            captured_piece = new_board[move[0] + move[1] * 8]
+            new_board[move[0] + move[1] * 8] = None
+
+            # Move the piece to the new position
+            new_board[move[0] + move[1] * 8] = self
+
+            opponent_pieces = [p for p in self.opponent_pieces if p != captured_piece]
 
             # Check if the move places the king in check
-            if is_king_in_check(new_board, self.opponent_pieces, self.allied_pieces):
+            if is_king_in_check(new_board, opponent_pieces, self.allied_pieces):
                 removed_moves.append(move)
 
         # Remove move if king would be in check
@@ -139,7 +145,10 @@ class Piece(pygame.sprite.Sprite):
         """ Generate legal moves for the pawn """
         # pawn movement logic depends on whether it's a white or black pawn
         col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
-        direction = -1 if 'white' in self.color else 1  # white moves up, black moves down (needs changes later)
+        if 'white' in self.color and player_color == 'white' or 'black' in self.color and player_color == 'black':
+            direction = -1
+        else:
+            direction = 1
         legal_moves = []
         target_pieces = []
 
@@ -235,22 +244,6 @@ class Piece(pygame.sprite.Sprite):
         return legal_moves, target_pieces
 
 
-def create_shallow_board_copy(board, moving_piece, move):
-    new_board = [None if piece is None else piece for piece in board]
-
-    old_col = moving_piece.original_pos[0] // TILE_SIZE
-    old_row = moving_piece.original_pos[1] // TILE_SIZE
-
-    # Clear the old position and new position of the moving piece
-    new_board[old_row * 8 + old_col] = None
-    new_board[move[1] * 8 + move[0]] = None
-
-    # Move the piece to the new position
-    new_board[move[1] * 8 + move[0]] = moving_piece
-
-    return new_board
-
-
 def is_king_in_check(board, opponent_pieces, own_pieces, skip_check=False):
     """ Check if the king of the given color is in check """
     if skip_check:
@@ -267,7 +260,7 @@ def is_king_in_check(board, opponent_pieces, own_pieces, skip_check=False):
     # Check if any opponent piece threatens the king
     for piece in opponent_pieces:
         legal_moves, _ = piece.generate_legal_moves(board, skip_check=True)
-        if (king_pos[0], king_pos[1]) in legal_moves:
+        if king_pos in legal_moves:
             return True  # The king is in check
 
     return False  # The king is safe
