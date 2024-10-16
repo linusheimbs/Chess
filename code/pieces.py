@@ -34,7 +34,7 @@ class Piece(pygame.sprite.Sprite):
             case 'knight':
                 legal_moves, target_piece = self.generate_knight_moves(board)
             case 'king':
-                legal_moves, target_piece = self.generate_king_moves(board)
+                legal_moves, target_piece = self.generate_king_moves(board, skip_check)
             case 'pawn':
                 legal_moves, target_piece = self.generate_pawn_moves(board)
             case _:
@@ -45,18 +45,7 @@ class Piece(pygame.sprite.Sprite):
 
         removed_moves = []
         for move in legal_moves:
-            new_board = [None if piece is None else piece for piece in board]
-
-            old_col = self.original_pos[0] // TILE_SIZE
-            old_row = self.original_pos[1] // TILE_SIZE
-
-            # Clear the old position and new position of the moving piece
-            new_board[old_row * 8 + old_col] = None
-            captured_piece = new_board[move[0] + move[1] * 8]
-            new_board[move[0] + move[1] * 8] = None
-
-            # Move the piece to the new position
-            new_board[move[0] + move[1] * 8] = self
+            new_board, captured_piece = create_shallow_board_copy(board, self, move)
 
             opponent_pieces = [p for p in self.opponent_pieces if p != captured_piece]
 
@@ -173,7 +162,7 @@ class Piece(pygame.sprite.Sprite):
 
         return legal_moves, target_pieces
 
-    def generate_king_moves(self, board):
+    def generate_king_moves(self, board, skip_check=False):
         """ Generate legal moves for the king """
         col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
         king_moves = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1),
@@ -192,28 +181,47 @@ class Piece(pygame.sprite.Sprite):
                     if potential_target:
                         target_pieces.append(potential_target)
 
-            # Castling Logic
-            if not self.has_moved:  # Only allow castling if the king hasn't moved
-                # Kingside castling (toward the right)
-                kingside_rook_pos = 7  # Column 7 (H file)
-                kingside_rook = board[row * 8 + kingside_rook_pos]
-                if isinstance(kingside_rook, Piece) and kingside_rook.type == 'rook' and\
-                        kingside_rook.color == self.color and not kingside_rook.has_moved:
-                    # Check that the squares between king and rook are empty
-                    if all(board[row * 8 + i] is None for i in range(col + 1, kingside_rook_pos)):
-                        # The king can castle kingside
-                        legal_moves.append((col + 2, row))
+        # Skip check
+        if skip_check:
+            return legal_moves, target_pieces
 
-                # Queenside castling
-                queenside_rook_pos = 0  # Column 0 (A file)
-                queenside_rook = board[row * 8 + queenside_rook_pos]
-                if isinstance(queenside_rook, Piece) and queenside_rook.type == 'rook' and\
-                        queenside_rook.color == self.color and not queenside_rook.has_moved:
-                    # Check that the squares between king and rook are empty
-                    if all(board[row * 8 + i] is None for i in range(queenside_rook_pos + 1, col)):
-                        # The king can castle queenside
-                        legal_moves.append((col - 2, row))
+        # Castling Logic
+        if not self.has_moved:  # Only allow castling if the king hasn't moved
+            # Kingside castling (toward the right)
+            kingside_rook_pos = 7  # Column 7 (H file)
+            kingside_rook = board[row * 8 + kingside_rook_pos]
+            kingside_castle_possible = []
+            if kingside_rook and kingside_rook.type == 'rook' and\
+                    kingside_rook.color == self.color and not kingside_rook.has_moved:
+                # Check that the squares between king and rook are empty
+                for i in range(col + 1, kingside_rook_pos):
+                    kingside_castle_possible.append(board[row * 8 + i] is None)
+                move = (col + 1, row)
+                new_board, _ = create_shallow_board_copy(board, self, move)
+                kingside_castle_possible.append(
+                    not is_king_in_check(new_board, self.opponent_pieces, self.allied_pieces))
+                if all(kingside_castle_possible):
+                    # The king can castle kingside
+                    legal_moves.append((col + 2, row))
+                    target_pieces.append(kingside_rook)
 
+            # Queenside castling
+            queenside_rook_pos = 0  # Column 0 (A file)
+            queenside_rook = board[row * 8 + queenside_rook_pos]
+            queenside_castle_possible = []
+            if queenside_rook and queenside_rook.type == 'rook' and\
+                    queenside_rook.color == self.color and not queenside_rook.has_moved:
+                # Check that the squares between king and rook are empty
+                for i in range(queenside_rook_pos + 1, col):
+                    queenside_castle_possible.append(board[row * 8 + i] is None)
+                move = (col - 1, row)
+                new_board, _ = create_shallow_board_copy(board, self, move)
+                queenside_castle_possible.append(
+                    not is_king_in_check(new_board, self.opponent_pieces, self.allied_pieces))
+                if all(queenside_castle_possible):
+                    # The king can castle queenside
+                    legal_moves.append((col - 2, row))
+                    target_pieces.append(queenside_rook)
         return legal_moves, target_pieces
 
     def generate_queen_moves(self, board):
@@ -242,6 +250,22 @@ class Piece(pygame.sprite.Sprite):
                     break
 
         return legal_moves, target_pieces
+
+
+def create_shallow_board_copy(board, moving_piece, move):
+    new_board = [None if piece is None else piece for piece in board]
+
+    old_col = moving_piece.original_pos[0] // TILE_SIZE
+    old_row = moving_piece.original_pos[1] // TILE_SIZE
+
+    # Clear the old position and new position of the moving piece
+    new_board[old_row * 8 + old_col] = None
+    captured_piece = new_board[move[0] + move[1] * 8]
+    new_board[move[0] + move[1] * 8] = None
+
+    # Move the piece to the new position
+    new_board[move[0] + move[1] * 8] = moving_piece
+    return new_board, captured_piece
 
 
 def is_king_in_check(board, opponent_pieces, own_pieces, skip_check=False):

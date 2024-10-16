@@ -20,7 +20,7 @@ class Main:
         self.fen_history.append(START_FEN_WHITE if player_color == 'white' else START_FEN_BLACK)
         self.setup()
 
-        # highlights
+        # moves
         self.legal_moves = None
 
     def setup(self):
@@ -84,9 +84,9 @@ class Main:
             # Call the Board's make_move method
             if self.board.make_move(self.selected_piece, col, row, self.legal_moves):
                 # If the move is successful, handle any additional logic
+                self.white_to_move = not self.white_to_move  # Switch turns
                 new_fen = self.generate_fen_from_board()
                 self.fen_history.append(new_fen)
-                self.white_to_move = not self.white_to_move  # Switch turns
             else:
                 # Reset the piece's position if the move was invalid
                 self.selected_piece.rect.topleft = self.selected_piece.original_pos
@@ -123,9 +123,17 @@ class Main:
             if row != DIMENSION - 1:
                 fen += "/"  # add row separator
 
-        # adding additional parts of the FEN string (like turn, castling, etc.)
+        # turn
         turn = 'w' if self.white_to_move else 'b'
-        fen += f" {turn} KQkq - 0 1"  # simplified; can be extended with castling rights, en passant, etc.
+        fen += f" {turn}"
+        # castling
+        fen += f" KQkq"
+        # en passant
+        fen += f" -"
+        # halfmove clock
+        fen += f" 0"
+        # fullmove number
+        fen += f" 1"
 
         return fen
 
