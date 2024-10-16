@@ -33,6 +33,8 @@ class Board:
             piece.rect.topleft = piece.original_pos
             self.square[old_position[1] * 8 + old_position[0]] = None  # Clear old position
             self.square[new_row * 8 + new_col] = piece  # Update to new position
+            if not piece.has_moved:
+                piece.has_moved = True
 
             # Castling logic: Check if king moved two spaces horizontally
             if piece.type == 'king':
