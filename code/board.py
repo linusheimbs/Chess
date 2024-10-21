@@ -1,4 +1,4 @@
-import pygame.display
+import pygame
 
 from settings import *
 from pieces import Piece
@@ -8,6 +8,11 @@ class Board:
     def __init__(self):
         self.display_surface = pygame.display.get_surface()
         self.square = []
+
+        # special rules
+        self.en_passant_target = None
+        self.half_move = 0
+        self.full_move = 0
 
     def create_pieces_from_fen(self, squares, group, piece_images):
         for index, piece in enumerate(squares):
@@ -59,7 +64,31 @@ class Board:
                         self.square[old_row * 8 + 0] = None  # Clear old rook position
                         self.square[old_row * 8 + 3] = rook  # Update new rook position
 
-            # capturing and special moves
+            # En-passant
+            if piece.type == 'pawn':
+                if self.en_passant_target and (new_col, new_row) == self.en_passant_target:  # If en-passant
+                    target_col = self.en_passant_target[0]  # Column of the en passant target
+                    target_row = new_row + (old_row - new_row)  # The row where the captured pawn resides
+                    target_pos = target_row * 8 + target_col  # Convert (col, row) to board position index
+                    target_piece = self.square[target_pos]  # The captured pawn
+                    self.en_passant_target = None
+                if abs(new_row - old_row) == 2:  # Check if pawn moved two squares forward
+                    target_row = (old_row + new_row) // 2  # The row between the start and end position
+                    self.en_passant_target = (new_col, target_row)  # Set en passant target position
+                else:
+                    self.en_passant_target = None
+            else:
+                self.en_passant_target = None  # Reset if no en passant is possible
+
+            # Change counting variables
+            if piece.type == 'pawn' or target_piece:
+                self.half_move = 0
+            else:
+                self.half_move += 1
+            if piece.color == 'white':
+                self.full_move += 1
+
+            # Capturing and special moves
             if target_piece:
                 if target_piece.color != piece.color:
                     target_piece.kill()  # Handle captured piece

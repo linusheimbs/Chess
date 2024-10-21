@@ -1,4 +1,4 @@
-import pygame.event
+import pygame
 from settings import *
 from support import load_images, load_position_from_fen
 from board import Board
@@ -22,6 +22,12 @@ class Main:
 
         # moves
         self.legal_moves = None
+
+        # fen
+        self.K_castle = True
+        self.Q_castle = True
+        self.k_castle = True
+        self.q_castle = True
 
     def setup(self):
         self.images = load_images('..', 'graphics', 'pieces')
@@ -61,7 +67,8 @@ class Main:
                 if (self.white_to_move and 'white' in piece.color) or (
                         not self.white_to_move and 'black' in piece.color):
                     self.selected_piece = piece  # Select the piece
-                    self.legal_moves, _ = self.selected_piece.generate_legal_moves(self.board.square)
+                    self.legal_moves = self.selected_piece.generate_legal_moves(
+                        self.board.square, en_passant_target=self.board.en_passant_target)
                 break
 
     def handle_mouse_move(self, pos):
@@ -87,6 +94,7 @@ class Main:
                 self.white_to_move = not self.white_to_move  # Switch turns
                 new_fen = self.generate_fen_from_board()
                 self.fen_history.append(new_fen)
+                print(self.fen_history[len(self.fen_history) - 1])
             else:
                 # Reset the piece's position if the move was invalid
                 self.selected_piece.rect.topleft = self.selected_piece.original_pos
@@ -99,6 +107,7 @@ class Main:
         fen = ""
         empty_count = 0
 
+        # Board status
         for row in range(DIMENSION):
             for col in range(DIMENSION):
                 piece = self.board.square[row * 8 + col]
@@ -127,13 +136,32 @@ class Main:
         turn = 'w' if self.white_to_move else 'b'
         fen += f" {turn}"
         # castling
-        fen += f" KQkq"
+        castling = ''
+        if any([self.K_castle, self.Q_castle, self.k_castle, self.q_castle]):
+            if self.K_castle:
+                castling += 'K'
+            if self.Q_castle:
+                castling += 'Q'
+            if self.k_castle:
+                castling += 'k'
+            if self.q_castle:
+                castling += 'q'
+        else:
+            castling = '-'
+        fen += f" {castling}"
         # en passant
-        fen += f" -"
+        if self.board.en_passant_target:
+            file, rank = self.board.en_passant_target
+            file = CHESS_NOTATION_WHITE[file] if player_color == 'white' else CHESS_NOTATION_BLACK[file]
+            rank = 8 - rank if player_color == 'white' else rank + 1
+            en_passant = f"{file}{rank}"
+        else:  # No pawn eligible for en-passant
+            en_passant = "-"
+        fen += f" {en_passant}"
         # halfmove clock
-        fen += f" 0"
+        fen += f" {self.board.half_move}"
         # fullmove number
-        fen += f" 1"
+        fen += f" {self.board.full_move}"
 
         return fen
 

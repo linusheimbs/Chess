@@ -1,5 +1,4 @@
-import pygame.sprite
-import copy
+import pygame
 
 from settings import *
 
@@ -21,7 +20,7 @@ class Piece(pygame.sprite.Sprite):
     def __repr__(self):
         return f'{self.color.capitalize()} {self.type.capitalize()}'
 
-    def generate_legal_moves(self, board, skip_check=False):
+    def generate_legal_moves(self, board, en_passant_target=None, skip_check=False):
         """ General method to route to the specific piece's move generation """
         piece_type = self.type
         match piece_type:
@@ -36,12 +35,12 @@ class Piece(pygame.sprite.Sprite):
             case 'king':
                 legal_moves, target_piece = self.generate_king_moves(board, skip_check)
             case 'pawn':
-                legal_moves, target_piece = self.generate_pawn_moves(board)
+                legal_moves, target_piece = self.generate_pawn_moves(board, en_passant_target)
             case _:
                 legal_moves, target_piece = [], None
 
         if skip_check:
-            return legal_moves, target_piece  # Skip further check validation
+            return legal_moves  # Skip further check validation
 
         removed_moves = []
         for move in legal_moves:
@@ -57,7 +56,7 @@ class Piece(pygame.sprite.Sprite):
         for move in removed_moves:
             legal_moves.remove(move)
 
-        return legal_moves, target_piece
+        return legal_moves
 
     def generate_rook_moves(self, board):
         """ Generate legal moves for the rook """
@@ -130,7 +129,7 @@ class Piece(pygame.sprite.Sprite):
 
         return legal_moves, target_pieces
 
-    def generate_pawn_moves(self, board):
+    def generate_pawn_moves(self, board, en_passant_target):
         """ Generate legal moves for the pawn """
         # pawn movement logic depends on whether it's a white or black pawn
         col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
@@ -156,7 +155,8 @@ class Piece(pygame.sprite.Sprite):
             new_col = col + side
             if 0 <= new_col < DIMENSION and 0 <= row + direction < DIMENSION:
                 potential_target = board[(row + direction) * 8 + new_col]
-                if potential_target and potential_target.color != self.color:
+                if ((potential_target and potential_target.color != self.color)
+                        or en_passant_target == (new_col, row + direction)):
                     legal_moves.append((new_col, row + direction))
                     target_pieces.append(potential_target)
 
@@ -283,7 +283,7 @@ def is_king_in_check(board, opponent_pieces, own_pieces, skip_check=False):
 
     # Check if any opponent piece threatens the king
     for piece in opponent_pieces:
-        legal_moves, _ = piece.generate_legal_moves(board, skip_check=True)
+        legal_moves = piece.generate_legal_moves(board, skip_check=True)
         if king_pos in legal_moves:
             return True  # The king is in check
 
