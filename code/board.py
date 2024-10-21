@@ -10,6 +10,7 @@ class Board:
         self.square = []
 
         # special rules
+        self.pawn_promotion = None
         self.en_passant_target = None
         self.half_move = 0
         self.full_move = 0
@@ -64,13 +65,16 @@ class Board:
                         self.square[old_row * 8 + 0] = None  # Clear old rook position
                         self.square[old_row * 8 + 3] = rook  # Update new rook position
 
-            # En-passant
+            # Pawn en-passant or promotion
             if piece.type == 'pawn':
+                if new_row == 0 or new_row == 7:
+                    self.pawn_promotion = piece
                 if self.en_passant_target and (new_col, new_row) == self.en_passant_target:  # If en-passant
                     target_col = self.en_passant_target[0]  # Column of the en passant target
                     target_row = new_row + (old_row - new_row)  # The row where the captured pawn resides
                     target_pos = target_row * 8 + target_col  # Convert (col, row) to board position index
                     target_piece = self.square[target_pos]  # The captured pawn
+                    self.square[target_pos] = None  # Clear captured pawn position
                     self.en_passant_target = None
                 if abs(new_row - old_row) == 2:  # Check if pawn moved two squares forward
                     target_row = (old_row + new_row) // 2  # The row between the start and end position

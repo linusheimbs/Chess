@@ -20,7 +20,7 @@ class Piece(pygame.sprite.Sprite):
     def __repr__(self):
         return f'{self.color.capitalize()} {self.type.capitalize()}'
 
-    def generate_legal_moves(self, board, en_passant_target=None, skip_check=False):
+    def generate_legal_moves(self, board, player_color, en_passant_target=None, skip_check=False):
         """ General method to route to the specific piece's move generation """
         piece_type = self.type
         match piece_type:
@@ -33,9 +33,9 @@ class Piece(pygame.sprite.Sprite):
             case 'knight':
                 legal_moves, target_piece = self.generate_knight_moves(board)
             case 'king':
-                legal_moves, target_piece = self.generate_king_moves(board, skip_check)
+                legal_moves, target_piece = self.generate_king_moves(board, player_color, skip_check)
             case 'pawn':
-                legal_moves, target_piece = self.generate_pawn_moves(board, en_passant_target)
+                legal_moves, target_piece = self.generate_pawn_moves(board, player_color, en_passant_target)
             case _:
                 legal_moves, target_piece = [], None
 
@@ -49,7 +49,7 @@ class Piece(pygame.sprite.Sprite):
             opponent_pieces = [p for p in self.opponent_pieces if p != captured_piece]
 
             # Check if the move places the king in check
-            if is_king_in_check(new_board, opponent_pieces, self.allied_pieces):
+            if is_king_in_check(new_board, opponent_pieces, self.allied_pieces, player_color):
                 removed_moves.append(move)
 
         # Remove move if king would be in check
@@ -129,11 +129,11 @@ class Piece(pygame.sprite.Sprite):
 
         return legal_moves, target_pieces
 
-    def generate_pawn_moves(self, board, en_passant_target):
+    def generate_pawn_moves(self, board, player_color, en_passant_target):
         """ Generate legal moves for the pawn """
         # pawn movement logic depends on whether it's a white or black pawn
         col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
-        if 'white' in self.color and player_color == 'white' or 'black' in self.color and player_color == 'black':
+        if ('white' in self.color and player_color == 'white') or ('black' in self.color and player_color == 'black'):
             direction = -1
         else:
             direction = 1
@@ -162,7 +162,7 @@ class Piece(pygame.sprite.Sprite):
 
         return legal_moves, target_pieces
 
-    def generate_king_moves(self, board, skip_check=False):
+    def generate_king_moves(self, board, player_color, skip_check=False):
         """ Generate legal moves for the king """
         col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
         king_moves = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1),
@@ -199,7 +199,7 @@ class Piece(pygame.sprite.Sprite):
                 move = (col + 1, row)
                 new_board, _ = create_shallow_board_copy(board, self, move)
                 kingside_castle_possible.append(
-                    not is_king_in_check(new_board, self.opponent_pieces, self.allied_pieces))
+                    not is_king_in_check(new_board, self.opponent_pieces, self.allied_pieces, player_color))
                 if all(kingside_castle_possible):
                     # The king can castle kingside
                     legal_moves.append((col + 2, row))
@@ -217,7 +217,7 @@ class Piece(pygame.sprite.Sprite):
                 move = (col - 1, row)
                 new_board, _ = create_shallow_board_copy(board, self, move)
                 queenside_castle_possible.append(
-                    not is_king_in_check(new_board, self.opponent_pieces, self.allied_pieces))
+                    not is_king_in_check(new_board, self.opponent_pieces, self.allied_pieces, player_color))
                 if all(queenside_castle_possible):
                     # The king can castle queenside
                     legal_moves.append((col - 2, row))
@@ -268,7 +268,7 @@ def create_shallow_board_copy(board, moving_piece, move):
     return new_board, captured_piece
 
 
-def is_king_in_check(board, opponent_pieces, own_pieces, skip_check=False):
+def is_king_in_check(board, opponent_pieces, own_pieces, player_color, skip_check=False):
     """ Check if the king of the given color is in check """
     if skip_check:
         return False  # Skip checking for checks to avoid recursion
@@ -283,7 +283,7 @@ def is_king_in_check(board, opponent_pieces, own_pieces, skip_check=False):
 
     # Check if any opponent piece threatens the king
     for piece in opponent_pieces:
-        legal_moves = piece.generate_legal_moves(board, skip_check=True)
+        legal_moves = piece.generate_legal_moves(board, player_color, skip_check=True)
         if king_pos in legal_moves:
             return True  # The king is in check
 

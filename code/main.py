@@ -1,189 +1,126 @@
 import pygame
 from settings import *
-from support import load_images, load_position_from_fen
-from board import Board
-from pieces import Piece
+from engine import Engine
+from button import Button  # Import the Button class
 
 
 class Main:
     def __init__(self):
-        # pygame setup
-        pygame.init()
-        self.running = True
+        # Window setup
         self.display_surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption('Chess')
 
-        # general setup
-        self.white_to_move = True
-        self.selected_piece = None
-        self.fen_history = []
-        self.fen_history.append(START_FEN_WHITE if player_color == 'white' else START_FEN_BLACK)
-        self.setup()
+        # General attributes
+        self.running = True
+        self.state = 'menu'  # Default state
+        self.player_color = 'white'
+        self.vs_ai = False  # Whether the player is playing against the AI
 
-        # moves
-        self.legal_moves = None
+        # Fonts
+        self.menu_font = pygame.font.SysFont('Arial', 32)
 
-        # fen
-        self.K_castle = True
-        self.Q_castle = True
-        self.k_castle = True
-        self.q_castle = True
+        # Define button dimensions based on window size
+        button_width = int(WINDOW_WIDTH * 0.33)  # 50% of the window width
+        button_height = int(WINDOW_HEIGHT * 0.1)  # 10% of the window height
+        button_gap = int(WINDOW_HEIGHT * 0.05)  # 5% gap between buttons
 
-    def setup(self):
-        self.images = load_images('..', 'graphics', 'pieces')
-        self.all_pieces = pygame.sprite.Group()
-        self.white_pieces = pygame.sprite.Group()
-        self.black_pieces = pygame.sprite.Group()
+        # Create buttons for play and exit options
+        self.play_button = Button(button_width, button_height, button_width, button_height,'Play',
+                                  self.menu_font, (50, 50, 50), (100, 100, 100), 'white')
 
-        # create the board
-        self.board = Board()
-        # create Pieces
-        squares = load_position_from_fen(self.fen_history[0])
-        self.board.create_pieces_from_fen(squares, (self.all_pieces, self.white_pieces, self.black_pieces), self.images)
+        self.exit_button = Button(button_width, button_gap + 2 * button_height, button_width, button_height,'Exit',
+                                  self.menu_font, (50, 50, 50), (100, 100, 100), 'white')
 
-    def draw(self):
-        self.board.draw_board()
-        self.draw_highlights()
-        self.draw_pieces()
+        # Buttons for game mode selection
+        self.pvp_button = Button(button_width, button_height, button_width, button_height,
+                                 'Player vs Player', self.menu_font, (50, 50, 50), (100, 100, 100),
+                                 'white')
+        self.pve_button = Button(button_width, button_gap + 2 * button_height, button_width, button_height,
+                                 'Player vs AI', self.menu_font, (50, 50, 50), (100, 100, 100),
+                                 'white')
 
-    def draw_highlights(self):
-        if self.selected_piece:
-            rect = pygame.rect.FRect(self.selected_piece.original_pos[0], self.selected_piece.original_pos[1],
-                                     TILE_SIZE, TILE_SIZE)
-            pygame.draw.rect(self.display_surface, 'orange', rect)
-            for index, move in enumerate(self.legal_moves):
-                rect = pygame.rect.FRect(move[0] * TILE_SIZE, move[1] * TILE_SIZE,
-                                         TILE_SIZE, TILE_SIZE)
-                color = COLORS['highlight_light'] if (move[0] + move[1]) % 2 == 0 else COLORS['highlight_dark']
-                pygame.draw.rect(self.display_surface, color, rect)
+        # Color selection buttons
+        self.white_button = Button(button_width, button_height, button_width, button_height,
+                                   'Play as White', self.menu_font, (50, 50, 50), (100, 100, 100),
+                                   'white')
+        self.black_button = Button(button_width, button_gap + 2 * button_height, button_width, button_height,
+                                   'Play as Black', self.menu_font, (50, 50, 50), (100, 100, 100),'white')
 
-    def draw_pieces(self):
-        for piece in self.all_pieces:
-            self.display_surface.blit(piece.surf, piece.rect)
+        # Placeholder for the game engine
+        self.engine = None
 
-    def handle_mouse_click(self, pos):
-        for piece in self.all_pieces:
-            if piece.rect.collidepoint(pos):
-                if (self.white_to_move and 'white' in piece.color) or (
-                        not self.white_to_move and 'black' in piece.color):
-                    self.selected_piece = piece  # Select the piece
-                    self.legal_moves = self.selected_piece.generate_legal_moves(
-                        self.board.square, en_passant_target=self.board.en_passant_target)
-                break
+    def draw_menu(self):
+        """Draw the main menu with buttons"""
+        self.display_surface.fill('black')
+        self.play_button.draw(self.display_surface)
+        self.exit_button.draw(self.display_surface)
 
-    def handle_mouse_move(self, pos):
-        if self.selected_piece:
-            # get the mouse position
-            x, y = (pos[0] - TILE_SIZE // 2, pos[1] - TILE_SIZE // 2)
+    def draw_game_mode_menu(self):
+        """Draw the game mode selection menu"""
+        self.display_surface.fill('black')
+        self.pvp_button.draw(self.display_surface)
+        self.pve_button.draw(self.display_surface)
 
-            # constrain the x and y position to be within the window boundaries
-            x = max(-TILE_SIZE//2, min(x, WINDOW_WIDTH - TILE_SIZE//2))
-            y = max(-TILE_SIZE//2, min(y, WINDOW_HEIGHT - TILE_SIZE//2))
+    def draw_color_selection_menu(self):
+        """Draw the color selection menu"""
+        self.display_surface.fill('black')
+        self.white_button.draw(self.display_surface)
+        self.black_button.draw(self.display_surface)
 
-            # update the piece's position
-            self.selected_piece.rect.topleft = (x, y)
+    def handle_menu_input(self, event):
+        """Handle button clicks in the main menu"""
+        if self.play_button.is_clicked(event):
+            self.state = 'game_mode_menu'
+        elif self.exit_button.is_clicked(event):
+            self.running = False
 
-    def handle_mouse_release(self, pos):
-        if self.selected_piece:
-            col = pos[0] // TILE_SIZE
-            row = pos[1] // TILE_SIZE
+    def handle_game_mode_input(self, event):
+        """Handle button clicks in the game mode selection menu"""
+        if self.pvp_button.is_clicked(event):
+            self.vs_ai = False  # PvP mode
+            self.state = 'color_selection'
+        elif self.pve_button.is_clicked(event):
+            self.vs_ai = True  # PvE mode (vs AI)
+            self.state = 'color_selection'
 
-            # Call the Board's make_move method
-            if self.board.make_move(self.selected_piece, col, row, self.legal_moves):
-                # If the move is successful, handle any additional logic
-                self.white_to_move = not self.white_to_move  # Switch turns
-                new_fen = self.generate_fen_from_board()
-                self.fen_history.append(new_fen)
-                print(self.fen_history[len(self.fen_history) - 1])
-            else:
-                # Reset the piece's position if the move was invalid
-                self.selected_piece.rect.topleft = self.selected_piece.original_pos
+    def handle_color_selection_input(self, event):
+        """Handle button clicks in the color selection menu"""
+        if self.white_button.is_clicked(event):
+            self.player_color = 'white'
+            self.start_game()
+        elif self.black_button.is_clicked(event):
+            self.player_color = 'black'
+            self.start_game()
 
-            self.selected_piece = None  # Deselect the piece
-            self.legal_moves = None
-
-    def generate_fen_from_board(self):
-        """Generate a FEN string based on the current board state"""
-        fen = ""
-        empty_count = 0
-
-        # Board status
-        for row in range(DIMENSION):
-            for col in range(DIMENSION):
-                piece = self.board.square[row * 8 + col]
-
-                if piece is None:
-                    empty_count += 1  # count empty squares
-                else:
-                    if empty_count > 0:
-                        fen += str(empty_count)  # add empty squares count to FEN
-                        empty_count = 0
-
-                    piece_type = piece.type[0]  # first letter of the piece type (r, n, b, q, k, p)
-                    if 'white' in piece.type:
-                        fen += piece_type.upper()  # uppercase for white pieces
-                    else:
-                        fen += piece_type.lower()  # lowercase for black pieces
-
-            if empty_count > 0:
-                fen += str(empty_count)  # append remaining empty squares count
-                empty_count = 0
-
-            if row != DIMENSION - 1:
-                fen += "/"  # add row separator
-
-        # turn
-        turn = 'w' if self.white_to_move else 'b'
-        fen += f" {turn}"
-        # castling
-        castling = ''
-        if any([self.K_castle, self.Q_castle, self.k_castle, self.q_castle]):
-            if self.K_castle:
-                castling += 'K'
-            if self.Q_castle:
-                castling += 'Q'
-            if self.k_castle:
-                castling += 'k'
-            if self.q_castle:
-                castling += 'q'
-        else:
-            castling = '-'
-        fen += f" {castling}"
-        # en passant
-        if self.board.en_passant_target:
-            file, rank = self.board.en_passant_target
-            file = CHESS_NOTATION_WHITE[file] if player_color == 'white' else CHESS_NOTATION_BLACK[file]
-            rank = 8 - rank if player_color == 'white' else rank + 1
-            en_passant = f"{file}{rank}"
-        else:  # No pawn eligible for en-passant
-            en_passant = "-"
-        fen += f" {en_passant}"
-        # halfmove clock
-        fen += f" {self.board.half_move}"
-        # fullmove number
-        fen += f" {self.board.full_move}"
-
-        return fen
+    def start_game(self):
+        """Initialize the engine and start the game"""
+        self.engine = Engine(self.player_color, self.vs_ai)  # Pass the color and game mode to the engine
+        self.state = 'game'
+        self.engine.run()
 
     def run(self):
+        """Main loop"""
         while self.running:
-            self.display_surface.fill('black')
-
-            # event handler
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:  # left mouse button
-                        self.handle_mouse_click(event.pos)
-                elif event.type == pygame.MOUSEBUTTONUP:
-                    if event.button == 1:  # left mouse button
-                        self.handle_mouse_release(event.pos)
-                elif event.type == pygame.MOUSEMOTION:
-                    self.handle_mouse_move(event.pos)
 
-            self.draw()
+                # Handle input based on the current state
+                if self.state == 'menu':
+                    self.handle_menu_input(event)
+                elif self.state == 'game_mode_menu':
+                    self.handle_game_mode_input(event)
+                elif self.state == 'color_selection':
+                    self.handle_color_selection_input(event)
+
+            # Draw the current state
+            if self.state == 'menu':
+                self.draw_menu()
+            elif self.state == 'game_mode_menu':
+                self.draw_game_mode_menu()
+            elif self.state == 'color_selection':
+                self.draw_color_selection_menu()
 
             pygame.display.flip()
 

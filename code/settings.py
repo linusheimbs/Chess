@@ -1,5 +1,7 @@
 import pygame
 
+pygame.init()
+
 WINDOW_WIDTH = WINDOW_HEIGHT = 896
 DIMENSION = 8
 TILE_SIZE = WINDOW_WIDTH//DIMENSION
@@ -9,8 +11,6 @@ COLORS = {
     'highlight_light': '#bc544b',
     'highlight_dark': '#710c04'
 }
-
-player_color = 'white'
 
 START_FEN_BLACK = 'rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR w KQkq - 0 1'
 START_FEN_WHITE = 'RNBQKBNR/PPPPPPPP/8/8/8/8/pppppppp/rnbqkbnr w KQkq - 0 1'
