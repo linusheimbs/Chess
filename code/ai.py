@@ -60,10 +60,6 @@ class AI:
                         score -= piece_value
         return score
 
-    import random
-
-    import random
-
     def find_best_move(self):
         all_chosen_moves = []  # List to store all chosen moves (only moves)
 
