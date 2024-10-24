@@ -1,4 +1,5 @@
 import random
+import time
 from board import Board
 from pieces import Piece
 from settings import *
@@ -9,7 +10,7 @@ class AI:
         'pawn': 1, 'knight': 3, 'bishop': 3, 'rook': 5, 'queen': 9, 'king': 100000,
     }
 
-    def __init__(self, color, engine, depth=2):
+    def __init__(self, color, engine, depth=1):
         """ Initialize AI with the color it will play (white or black) and the engine instance """
         self.color = color
         self.engine = engine  # Reference to the game engine to access board state, FEN, etc.
@@ -75,10 +76,6 @@ class AI:
                 chosen_move = random.choice(legal_moves)
                 all_chosen_moves.append(chosen_move)  # Add only the chosen move to the list
 
-        # If no moves were chosen, return None (or some default value)
-        if not all_chosen_moves:
-            return None, None, []  # or handle this case as you see fit
-
         # Randomly select one of the chosen moves
         best_move = random.choice(all_chosen_moves)
 
@@ -94,8 +91,10 @@ class AI:
 
     def make_move(self):
         """ Execute the best move found by the AI """
+        start_time = time.time()
         best_piece, best_move, legal_moves = self.find_best_move()
+        elapsed_time = time.time() - start_time
         if best_piece and best_move:
             self.engine.board.make_move(best_piece, best_move[0], best_move[1], legal_moves)
-        print(self.pos_evaluated_count)
+        print(f"Positions evaluated: {self.pos_evaluated_count}, Time taken: {elapsed_time:.9f} seconds")
         self.pos_evaluated_count = 0
