@@ -4,6 +4,7 @@ from settings import *
 
 
 def load_images(*path):
+    """ Loads and scales images from the specified directory into a dictionary """
     frames = {}
     for folder_path, sub_folders, image_names in walk(join(*path)):
         for image_name in image_names:
@@ -15,6 +16,7 @@ def load_images(*path):
 
 
 def load_position_from_fen(fen):
+    """ Converts a FEN string into a list representing piece positions on the board """
     piece_type_from_symbol = {
         'k': 'king',
         'p': 'pawn',

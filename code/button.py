@@ -11,7 +11,7 @@ class Button:
         self.text_color = text_color
 
     def draw(self, surface):
-        """Draw the button with hover effect"""
+        """ Draw the button with hover effect """
         mouse_pos = pygame.mouse.get_pos()
         is_hovered = self.rect.collidepoint(mouse_pos)
         color = self.hover_color if is_hovered else self.color
@@ -26,7 +26,7 @@ class Button:
         surface.blit(text_surface, (text_x, text_y))
 
     def is_clicked(self, event):
-        """Check if the button is clicked"""
+        """ Check if the button is clicked """
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos):
                 return True

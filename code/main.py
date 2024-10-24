@@ -20,31 +20,32 @@ class Main:
         self.menu_font = pygame.font.SysFont('Arial', 32)
 
         # Define button dimensions based on window size
-        button_width = int(WINDOW_WIDTH * 0.33)  # 50% of the window width
+        button_width = int(WINDOW_WIDTH * 0.33)  # 33% of the window width
         button_height = int(WINDOW_HEIGHT * 0.1)  # 10% of the window height
         button_gap = int(WINDOW_HEIGHT * 0.05)  # 5% gap between buttons
 
         # Create buttons for play and exit options
-        self.play_button = Button(button_width, button_height, button_width, button_height,'Play',
-                                  self.menu_font, (50, 50, 50), (100, 100, 100), 'white')
+        self.play_button = Button(button_width, 3 * button_height, button_width, button_height,'Play',
+                                  self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
 
-        self.exit_button = Button(button_width, button_gap + 2 * button_height, button_width, button_height,'Exit',
-                                  self.menu_font, (50, 50, 50), (100, 100, 100), 'white')
+        self.exit_button = Button(button_width, button_gap + 4 * button_height, button_width, button_height,'Exit',
+                                  self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
 
         # Buttons for game mode selection
-        self.pvp_button = Button(button_width, button_height, button_width, button_height,
-                                 'Player vs Player', self.menu_font, (50, 50, 50), (100, 100, 100),
-                                 'white')
-        self.pve_button = Button(button_width, button_gap + 2 * button_height, button_width, button_height,
-                                 'Player vs AI', self.menu_font, (50, 50, 50), (100, 100, 100),
-                                 'white')
+        self.pvp_button = Button(button_width, 3 * button_height, button_width, button_height,
+                                 'Player vs Player', self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
+        self.pve_button = Button(button_width, button_gap + 4 * button_height, button_width, button_height,
+                                 'Player vs AI', self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
 
         # Color selection buttons
-        self.white_button = Button(button_width, button_height, button_width, button_height,
-                                   'Play as White', self.menu_font, (50, 50, 50), (100, 100, 100),
-                                   'white')
-        self.black_button = Button(button_width, button_gap + 2 * button_height, button_width, button_height,
-                                   'Play as Black', self.menu_font, (50, 50, 50), (100, 100, 100),'white')
+        self.white_button = Button(button_width, 3 * button_height, button_width, button_height,
+                                   'Play as White', self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
+        self.black_button = Button(button_width, button_gap + 4 * button_height, button_width, button_height,
+                                   'Play as Black', self.menu_font, COLORS['button'], COLORS['button_hover'],'white')
+
+        # Back button
+        self.back_button = Button(button_width, 2 * button_gap + 5 * button_height, button_width, button_height,
+                                  'Back', self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
 
         # Placeholder for the game engine
         self.engine = None
@@ -60,12 +61,14 @@ class Main:
         self.display_surface.fill('black')
         self.pvp_button.draw(self.display_surface)
         self.pve_button.draw(self.display_surface)
+        self.back_button.draw(self.display_surface)
 
     def draw_color_selection_menu(self):
         """Draw the color selection menu"""
         self.display_surface.fill('black')
         self.white_button.draw(self.display_surface)
         self.black_button.draw(self.display_surface)
+        self.back_button.draw(self.display_surface)
 
     def handle_menu_input(self, event):
         """Handle button clicks in the main menu"""
@@ -82,6 +85,8 @@ class Main:
         elif self.pve_button.is_clicked(event):
             self.vs_ai = True  # PvE mode (vs AI)
             self.state = 'color_selection'
+        elif self.back_button.is_clicked(event):
+            self.state = 'menu'
 
     def handle_color_selection_input(self, event):
         """Handle button clicks in the color selection menu"""
@@ -91,6 +96,8 @@ class Main:
         elif self.black_button.is_clicked(event):
             self.player_color = 'black'
             self.start_game()
+        elif self.back_button.is_clicked(event):
+            self.state = 'game_mode_menu'
 
     def start_game(self):
         """Initialize the engine and start the game"""

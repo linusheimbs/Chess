@@ -9,7 +9,9 @@ COLORS = {
     'board_light': '#f1d9c0',
     'board_dark': '#a97a65',
     'highlight_light': '#bc544b',
-    'highlight_dark': '#710c04'
+    'highlight_dark': '#710c04',
+    'button': '#323232',
+    'button_hover': '#646464'
 }
 
 START_FEN_BLACK = 'rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR w KQkq - 0 1'

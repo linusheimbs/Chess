@@ -4,22 +4,28 @@ from support import load_images, load_position_from_fen
 from board import Board
 from pieces import Piece
 from button import Button
+from ai import AI
 
 
 class Engine:
-    def __init__(self, player_color, opponent):
+    def __init__(self, player_color, vs_ai):
         # pygame setup
         self.running = True
         self.display_surface = pygame.display.get_surface()
 
         # general setup
         self.player_color = player_color
-        self.opponent = opponent
         self.white_to_move = True
         self.selected_piece = None
         self.fen_history = []
         self.fen_history.append(START_FEN_WHITE if self.player_color == 'white' else START_FEN_BLACK)
         self.setup()
+
+        # ai
+        self.vs_ai = vs_ai
+        if self.vs_ai:
+            self.ai = AI('black' if self.player_color == 'white' else 'white', self)
+        self.ai_turn = False if self.player_color == 'white' else True
 
         # moves
         self.legal_moves = None
@@ -35,13 +41,13 @@ class Engine:
         # Create promotion buttons dynamically based on window size
         self.promotion_buttons = {
             'queen': Button(button_gap, button_height, button_width, button_height,
-                            "Promote to Queen", self.font, (50, 50, 50), (100, 100, 100), 'white'),
+                            "Promote to Queen", self.font, COLORS['button'], COLORS['button_hover'], 'white'),
             'rook': Button(2 * button_gap + button_width, button_height, button_width, button_height,
-                           "Promote to Rook", self.font, (50, 50, 50), (100, 100, 100), 'white'),
+                           "Promote to Rook", self.font, COLORS['button'], COLORS['button_hover'], 'white'),
             'knight': Button(3 * button_gap + 2 * button_width, button_height, button_width, button_height,
-                             "Promote to Knight", self.font, (50, 50, 50), (100, 100, 100), 'white'),
+                             "Promote to Knight", self.font, COLORS['button'], COLORS['button_hover'], 'white'),
             'bishop': Button(4 * button_gap + 3 * button_width, button_height, button_width, button_height,
-                             "Promote to Bishop", self.font, (50, 50, 50), (100, 100, 100), 'white')
+                             "Promote to Bishop", self.font, COLORS['button'], COLORS['button_hover'], 'white')
         }
 
         # fen
@@ -51,18 +57,17 @@ class Engine:
         self.q_castle = True
 
     def setup(self):
+        """ Loads images and initializes the board and pieces from the starting FEN """
         self.images = load_images('..', 'graphics', 'pieces')
-        self.all_pieces = pygame.sprite.Group()
-        self.white_pieces = pygame.sprite.Group()
-        self.black_pieces = pygame.sprite.Group()
 
         # create the board
-        self.board = Board()
+        self.board = Board(self.images)
         # create Pieces
         squares = load_position_from_fen(self.fen_history[0])
-        self.board.create_pieces_from_fen(squares, (self.all_pieces, self.white_pieces, self.black_pieces), self.images)
+        self.board.create_pieces_from_fen(squares)
 
     def draw(self):
+        """ Renders the game board, highlights, and pieces on the display surface """
         self.board.draw_board()
         self.draw_highlights()
         self.draw_pieces()
@@ -71,8 +76,9 @@ class Engine:
                 button.draw(self.display_surface)
 
     def draw_highlights(self):
+        """ Highlights the selected piece and its legal moves on the board """
         if self.selected_piece:
-            rect = pygame.rect.FRect(self.selected_piece.original_pos[0], self.selected_piece.original_pos[1],
+            rect = pygame.rect.FRect(self.selected_piece.pos[0], self.selected_piece.pos[1],
                                      TILE_SIZE, TILE_SIZE)
             pygame.draw.rect(self.display_surface, 'orange', rect)
             for index, move in enumerate(self.legal_moves):
@@ -82,60 +88,40 @@ class Engine:
                 pygame.draw.rect(self.display_surface, color, rect)
 
     def draw_pieces(self):
-        for piece in self.all_pieces:
+        """ Draws all chess pieces on the board at their current positions """
+        for piece in self.board.all_pieces:
             self.display_surface.blit(piece.surf, piece.rect)
 
-    def promote_pawn(self, promotion_type):
-        # Get the variables of the pawn
-        pawn_piece = self.board.pawn_promotion
-        col, row = pawn_piece.original_pos[0] // TILE_SIZE, pawn_piece.original_pos[1] // TILE_SIZE
-        pos = (col, row)
-        name = f"{pawn_piece.color}_{promotion_type}"
-        surf = self.images[name]
-
-        # Replace the pawn with the selected piece
-        if pawn_piece.color == 'white':
-            new_piece = Piece(name, surf, (self.all_pieces, self.white_pieces), pos,
-                              self.white_pieces, self.black_pieces)
-            self.white_pieces.add(new_piece)
-        else:
-            new_piece = Piece(name, surf, (self.all_pieces, self.black_pieces), pos,
-                              self.black_pieces, self.white_pieces)
-            self.black_pieces.add(new_piece)
-
-        # Update the board
-        self.board.square[row * 8 + col] = new_piece
-        self.all_pieces.add(new_piece)
-
-        # Clear the pawn promotion flag and the piece
-        pawn_piece.kill()
-        self.board.pawn_promotion = None
-
-        # Switch turns
-        self.white_to_move = not self.white_to_move
-
-        # Generate new FEN and add to history
-        new_fen = self.generate_fen_from_board()
-        self.fen_history.append(new_fen)
-
     def handle_mouse_click(self, pos):
-        if not self.board.pawn_promotion:
-            for piece in self.all_pieces:
-                if piece.rect.collidepoint(pos):
-                    if (self.white_to_move and 'white' in piece.color) or (
-                            not self.white_to_move and 'black' in piece.color):
-                        self.selected_piece = piece  # Select the piece
-                        self.legal_moves = self.selected_piece.generate_legal_moves(
-                            self.board.square, self.player_color, en_passant_target=self.board.en_passant_target)
-                    break
-        else:
-            # Handle promotion selection
-            for promotion_type, button in self.promotion_buttons.items():
-                if button.rect.collidepoint(pos):
-                    self.promote_pawn(promotion_type)
-                    break
+        if not self.ai_turn:
+            """ Processes mouse click events for piece selection and promotion actions """
+            if not self.board.pawn_promotion:
+                for piece in self.board.all_pieces:
+                    if piece.rect.collidepoint(pos):
+                        if (self.white_to_move and 'white' in piece.color) or (
+                                not self.white_to_move and 'black' in piece.color):
+                            self.selected_piece = piece  # Select the piece
+                            self.legal_moves = self.selected_piece.generate_legal_moves(
+                                self.board.square, self.player_color, en_passant_target=self.board.en_passant_target)
+                        break
+            else:
+                # Handle promotion selection
+                for promotion_type, button in self.promotion_buttons.items():
+                    if button.rect.collidepoint(pos):
+                        self.board.promote_pawn(promotion_type)
+                        # Switch turns
+                        self.white_to_move = not self.white_to_move
+
+                        # Generate new FEN and add to history
+                        new_fen = self.generate_fen_from_board()
+                        self.fen_history.append(new_fen)
+
+                        if self.vs_ai:
+                            self.ai_turn = not self.ai_turn
+                        break
 
     def handle_mouse_move(self, pos):
+        """ Updates the position of the selected piece based on mouse movement """
         if not self.board.pawn_promotion:
             if self.selected_piece:
                 # get the mouse position
@@ -149,6 +135,7 @@ class Engine:
                 self.selected_piece.rect.topleft = (x, y)
 
     def handle_mouse_release(self, pos):
+        """ Executes the move of the selected piece and updates the game state """
         if not self.board.pawn_promotion:
             if self.selected_piece:
                 col = pos[0] // TILE_SIZE
@@ -161,15 +148,17 @@ class Engine:
                         self.white_to_move = not self.white_to_move  # Switch turns
                         new_fen = self.generate_fen_from_board()
                         self.fen_history.append(new_fen)
+                        if self.vs_ai:
+                            self.ai_turn = not self.ai_turn
                 else:
                     # Reset the piece's position if the move was invalid
-                    self.selected_piece.rect.topleft = self.selected_piece.original_pos
+                    self.selected_piece.rect.topleft = self.selected_piece.pos
 
                 self.selected_piece = None  # Deselect the piece
                 self.legal_moves = None
 
     def generate_fen_from_board(self):
-        """Generate a FEN string based on the current board state"""
+        """ Generate a FEN string based on the current board state """
         fen = ""
         empty_count = 0
 
@@ -232,6 +221,7 @@ class Engine:
         return fen
 
     def run(self):
+        """ Main game loop that handles events and updates the display """
         while self.running:
             self.display_surface.fill('black')
 
@@ -248,6 +238,13 @@ class Engine:
                         self.handle_mouse_release(event.pos)
                 elif event.type == pygame.MOUSEMOTION:
                     self.handle_mouse_move(event.pos)
+
+            if self.ai_turn:
+                self.ai.make_move()
+                self.ai_turn = False
+                self.white_to_move = not self.white_to_move  # Switch turns
+                new_fen = self.generate_fen_from_board()
+                self.fen_history.append(new_fen)
 
             self.draw()
 

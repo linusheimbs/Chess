@@ -7,7 +7,6 @@ class Piece(pygame.sprite.Sprite):
     def __init__(self, name, surf, group, pos, allied_pieces, opponent_pieces):
         super().__init__(group)
         self.pos = (pos[0]*TILE_SIZE,pos[1]*TILE_SIZE)
-        self.original_pos = self.pos
         self.color = name.split('_')[0]
         self.type = name.split('_')[1]
         self.group = group
@@ -18,7 +17,7 @@ class Piece(pygame.sprite.Sprite):
         self.has_moved = False
 
     def __repr__(self):
-        return f'{self.color.capitalize()} {self.type.capitalize()}'
+        return f'{self.color.capitalize()}{self.type.capitalize()}'
 
     def generate_legal_moves(self, board, player_color, en_passant_target=None, skip_check=False):
         """ General method to route to the specific piece's move generation """
@@ -60,7 +59,7 @@ class Piece(pygame.sprite.Sprite):
 
     def generate_rook_moves(self, board):
         """ Generate legal moves for the rook """
-        col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
+        col, row = self.pos[0] // TILE_SIZE, self.pos[1] // TILE_SIZE
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]  # up, down, left, right
         legal_moves = []
         target_pieces = []
@@ -85,7 +84,7 @@ class Piece(pygame.sprite.Sprite):
 
     def generate_bishop_moves(self, board):
         """ Generate legal moves for the bishop """
-        col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
+        col, row = self.pos[0] // TILE_SIZE, self.pos[1] // TILE_SIZE
         directions = [(-1, -1), (1, 1), (-1, 1), (1, -1)]  # diagonal directions
         legal_moves = []
         target_pieces = []
@@ -111,7 +110,7 @@ class Piece(pygame.sprite.Sprite):
 
     def generate_knight_moves(self, board):
         """ Generate legal moves for the knight """
-        col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
+        col, row = self.pos[0] // TILE_SIZE, self.pos[1] // TILE_SIZE
         knight_moves = [(2, 1), (2, -1), (-2, 1), (-2, -1), (1, 2), (-1, 2), (1, -2), (-1, -2)]  # L-shapes
         legal_moves = []
         target_pieces = []
@@ -132,7 +131,7 @@ class Piece(pygame.sprite.Sprite):
     def generate_pawn_moves(self, board, player_color, en_passant_target):
         """ Generate legal moves for the pawn """
         # pawn movement logic depends on whether it's a white or black pawn
-        col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
+        col, row = self.pos[0] // TILE_SIZE, self.pos[1] // TILE_SIZE
         if ('white' in self.color and player_color == 'white') or ('black' in self.color and player_color == 'black'):
             direction = -1
         else:
@@ -164,7 +163,7 @@ class Piece(pygame.sprite.Sprite):
 
     def generate_king_moves(self, board, player_color, skip_check=False):
         """ Generate legal moves for the king """
-        col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
+        col, row = self.pos[0] // TILE_SIZE, self.pos[1] // TILE_SIZE
         king_moves = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1),
                       (1, -1)]  # all 8 directions, 1 square
         legal_moves = []
@@ -226,7 +225,7 @@ class Piece(pygame.sprite.Sprite):
 
     def generate_queen_moves(self, board):
         """ Generate legal moves for the queen """
-        col, row = self.original_pos[0] // TILE_SIZE, self.original_pos[1] // TILE_SIZE
+        col, row = self.pos[0] // TILE_SIZE, self.pos[1] // TILE_SIZE
         directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)]  # all 8 directions
         legal_moves = []
         target_pieces = []
@@ -253,10 +252,11 @@ class Piece(pygame.sprite.Sprite):
 
 
 def create_shallow_board_copy(board, moving_piece, move):
+    """ Creates a shallow copy of the board with the moving piece in its new position """
     new_board = [None if piece is None else piece for piece in board]
 
-    old_col = moving_piece.original_pos[0] // TILE_SIZE
-    old_row = moving_piece.original_pos[1] // TILE_SIZE
+    old_col = moving_piece.pos[0] // TILE_SIZE
+    old_row = moving_piece.pos[1] // TILE_SIZE
 
     # Clear the old position and new position of the moving piece
     new_board[old_row * 8 + old_col] = None
