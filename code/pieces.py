@@ -1,6 +1,7 @@
 import pygame
 
 from settings import *
+from support import is_king_in_check
 
 
 class Piece(pygame.sprite.Sprite):
@@ -266,25 +267,3 @@ def create_shallow_board_copy(board, moving_piece, move):
     # Move the piece to the new position
     new_board[move[0] + move[1] * 8] = moving_piece
     return new_board, captured_piece
-
-
-def is_king_in_check(board, opponent_pieces, own_pieces, player_color, skip_check=False):
-    """ Check if the king of the given color is in check """
-    if skip_check:
-        return False  # Skip checking for checks to avoid recursion
-
-    king_pos = (0, 0)
-    for col in range(8):
-        for row in range(8):
-            piece = board[row * 8 + col]
-            if piece and piece.type == 'king' and piece in own_pieces:
-                king_pos = (col, row)
-                break
-
-    # Check if any opponent piece threatens the king
-    for piece in opponent_pieces:
-        legal_moves = piece.generate_legal_moves(board, player_color, skip_check=True)
-        if king_pos in legal_moves:
-            return True  # The king is in check
-
-    return False  # The king is safe

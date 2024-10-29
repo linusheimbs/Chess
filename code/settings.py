@@ -6,6 +6,7 @@ WINDOW_WIDTH = WINDOW_HEIGHT = 896
 DIMENSION = 8
 TILE_SIZE = WINDOW_WIDTH//DIMENSION
 COLORS = {
+    'text': '#ffffff',
     'board_light': '#f1d9c0',
     'board_dark': '#a97a65',
     'highlight_light': '#bc544b',

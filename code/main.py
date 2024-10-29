@@ -26,26 +26,26 @@ class Main:
 
         # Create buttons for play and exit options
         self.play_button = Button(button_width, 3 * button_height, button_width, button_height,'Play',
-                                  self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
+                                  self.menu_font)
 
         self.exit_button = Button(button_width, button_gap + 4 * button_height, button_width, button_height,'Exit',
-                                  self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
+                                  self.menu_font)
 
         # Buttons for game mode selection
-        self.pvp_button = Button(button_width, 3 * button_height, button_width, button_height,
-                                 'Player vs Player', self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
+        self.pvp_button = Button(button_width, 3 * button_height, button_width, button_height,'Player vs Player',
+                                 self.menu_font)
         self.pve_button = Button(button_width, button_gap + 4 * button_height, button_width, button_height,
-                                 'Player vs AI', self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
+                                 'Player vs AI', self.menu_font)
 
         # Color selection buttons
-        self.white_button = Button(button_width, 3 * button_height, button_width, button_height,
-                                   'Play as White', self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
+        self.white_button = Button(button_width, 3 * button_height, button_width, button_height, 'Play as White',
+                                   self.menu_font)
         self.black_button = Button(button_width, button_gap + 4 * button_height, button_width, button_height,
-                                   'Play as Black', self.menu_font, COLORS['button'], COLORS['button_hover'],'white')
+                                   'Play as Black', self.menu_font)
 
         # Back button
         self.back_button = Button(button_width, 2 * button_gap + 5 * button_height, button_width, button_height,
-                                  'Back', self.menu_font, COLORS['button'], COLORS['button_hover'], 'white')
+                                  'Back', self.menu_font)
 
         # Placeholder for the game engine
         self.engine = None
@@ -102,7 +102,7 @@ class Main:
     def start_game(self):
         """Initialize the engine and start the game"""
         self.engine = Engine(self.player_color, self.vs_ai)  # Pass the color and game mode to the engine
-        self.state = 'game'
+        self.state = 'menu'
         self.engine.run()
 
     def run(self):

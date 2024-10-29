@@ -96,5 +96,5 @@ class AI:
         elapsed_time = time.time() - start_time
         if best_piece and best_move:
             self.engine.board.make_move(best_piece, best_move[0], best_move[1], legal_moves)
-        print(f"Positions evaluated: {self.pos_evaluated_count}, Time taken: {elapsed_time:.9f} seconds")
+        # print(f"Positions evaluated: {self.pos_evaluated_count}, Time taken: {elapsed_time:.9f} seconds")
         self.pos_evaluated_count = 0

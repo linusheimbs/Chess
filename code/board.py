@@ -2,33 +2,159 @@ import pygame
 
 from settings import *
 from pieces import Piece
+from support import is_king_in_check
 
 
 class Board:
-    def __init__(self, images):
+    def __init__(self, images, player_color, starting_pos):
         self.display_surface = pygame.display.get_surface()
         self.square = [None] * 64
         self.images = images
 
-        # special rules
-        self.pawn_promotion = None
-        self.en_passant_target = None
-        self.half_move = 0
-        self.full_move = 0
+        # groups
         self.all_pieces = pygame.sprite.Group()
         self.white_pieces = pygame.sprite.Group()
         self.black_pieces = pygame.sprite.Group()
 
-    def create_pieces_from_fen(self, squares):
-        """ Initializes chess pieces on the board from a list of piece names or None values """
+        # essential
+        self.player_color = player_color
+        self.white_to_move = True
+
+        # special rules and fen variables
+        self.pawn_promotion = None
+        self.en_passant_target = None
+        self.half_move = 0
+        self.full_move = 0
+        self.K_castle = True
+        self.Q_castle = True
+        self.k_castle = True
+        self.q_castle = True
+
+        # game over
+        self.checkmate = False
+        self.game_drawn = False
+
+        # fen
+        self.fen_history = []
+
+        # create Pieces
+        self.load_and_create_pieces_from_fen(starting_pos)
+
+    def load_and_create_pieces_from_fen(self, fen):
+        """ Converts a FEN string into a list representing piece positions on the board and initializes the pieces """
+        piece_type_from_symbol = {
+            'k': 'king',
+            'p': 'pawn',
+            'n': 'knight',
+            'b': 'bishop',
+            'r': 'rook',
+            'q': 'queen'
+        }
+
+        fen_board = fen.split(' ')[0]
+        file = 0
+        rank = 7
+        squares = [None] * 64
+
+        # Load positions from the FEN string
+        for symbol in fen_board:
+            if symbol == '/':
+                file = 0
+                rank -= 1
+            elif symbol.isdigit():
+                file += int(symbol)
+            else:
+                piece_colour = 'white' if symbol.isupper() else 'black'
+                piece_type = piece_type_from_symbol[symbol.lower()]
+                piece_name = f'{piece_colour}_{piece_type}'
+                squares[rank * 8 + file] = piece_name
+                file += 1
+
+        # Create pieces on the board from the loaded positions
         for index, piece in enumerate(squares):
             pos = (index % 8, index // 8)
             if piece:
                 self.square[index] = (Piece(piece, self.images[piece],
-                                            (self.all_pieces, self.white_pieces if piece.split('_')[0] == 'white'
-                                            else self.black_pieces), pos,
+                                            (self.all_pieces,
+                                             self.white_pieces if piece.split('_')[
+                                                                      0] == 'white' else self.black_pieces),
+                                            pos,
                                             self.white_pieces if piece.split('_')[0] == 'white' else self.black_pieces,
                                             self.black_pieces if piece.split('_')[0] == 'white' else self.white_pieces))
+
+        self.fen_history.append(fen)
+
+    def generate_fen_from_board(self):
+        """ Generate a FEN string based on the current board state """
+        fen = ""
+        empty_count = 0
+
+        # Board status
+        for row in range(DIMENSION):
+            for col in range(DIMENSION):
+                piece = self.square[row * 8 + col]
+
+                if piece is None:
+                    empty_count += 1  # count empty squares
+                else:
+                    if empty_count > 0:
+                        fen += str(empty_count)  # add empty squares count to FEN
+                        empty_count = 0
+
+                    piece_type = piece.type[0]  # first letter of the piece type (r, n, b, q, k, p)
+                    if 'white' in piece.type:
+                        fen += piece_type.upper()  # uppercase for white pieces
+                    else:
+                        fen += piece_type.lower()  # lowercase for black pieces
+
+            if empty_count > 0:
+                fen += str(empty_count)  # append remaining empty squares count
+                empty_count = 0
+
+            if row != DIMENSION - 1:
+                fen += "/"  # add row separator
+
+        # turn
+        turn = 'w' if self.white_to_move else 'b'
+        fen += f" {turn}"
+        # castling
+        castling = ''
+        if any([self.K_castle, self.Q_castle, self.k_castle, self.q_castle]):
+            if self.K_castle:
+                castling += 'K'
+            if self.Q_castle:
+                castling += 'Q'
+            if self.k_castle:
+                castling += 'k'
+            if self.q_castle:
+                castling += 'q'
+        else:
+            castling = '-'
+        fen += f" {castling}"
+        # en passant
+        if self.en_passant_target:
+            file, rank = self.en_passant_target
+            file = CHESS_NOTATION_WHITE[file] if self.player_color == 'white' else CHESS_NOTATION_BLACK[file]
+            rank = 8 - rank if self.player_color == 'white' else rank + 1
+            en_passant = f"{file}{rank}"
+        else:  # No pawn eligible for en-passant
+            en_passant = "-"
+        fen += f" {en_passant}"
+        # halfmove clock
+        fen += f" {self.half_move}"
+        # fullmove number
+        fen += f" {self.full_move}"
+
+        return fen
+
+    def generate_current_sides_moves(self):
+        legal_moves = {}
+        for piece in self.white_pieces if self.white_to_move else self.black_pieces:
+            piece_legal_moves = piece.generate_legal_moves(
+                self.square, 'black' if self.white_to_move else 'white', en_passant_target=self.en_passant_target)
+            if piece_legal_moves:
+                legal_moves[piece] = piece_legal_moves
+        return legal_moves
 
     def make_move(self, piece, new_col, new_row, legal_moves):
         """ Handles the move logic for a piece """
@@ -71,6 +197,13 @@ class Board:
             else:
                 self.en_passant_target = None  # Reset if no en passant is possible
 
+            # Capturing
+            if target_piece:
+                if target_piece.color != piece.color:
+                    target_piece.kill()  # Handle captured piece
+
+            self.white_to_move = not self.white_to_move
+
             # Change counting variables
             if piece.type == 'pawn' or target_piece:
                 self.half_move = 0
@@ -78,11 +211,6 @@ class Board:
                 self.half_move += 1
             if piece.color == 'white':
                 self.full_move += 1
-
-            # Capturing and special moves
-            if target_piece:
-                if target_piece.color != piece.color:
-                    target_piece.kill()  # Handle captured piece
 
             return True  # Move successfully made
         else:
@@ -134,6 +262,17 @@ class Board:
         # Clear the pawn promotion flag and the piece
         self.pawn_promotion.kill()
         self.pawn_promotion = None
+
+    def check_game_over(self):
+        if not self.generate_current_sides_moves():
+            if is_king_in_check(
+                    self.square,
+                    self.black_pieces if self.white_to_move else self.white_pieces,
+                    self.white_pieces if self.white_to_move else self.black_pieces,
+                    'white' if self.white_to_move else 'black'):
+                self.checkmate = True
+            else:
+                self.game_drawn = True
 
     def draw_board(self):
         """ Draw the rectangles of the board """
